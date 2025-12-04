@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>字符串摘要算法可视化 (Huawei OD)</title>
+    <style>
+        :root {
+            --bg-color: #1e1e2e;
+            --text-color: #cdd6f4;
+            --primary: #89b4fa;
+            --secondary: #a6e3a1;
+            --accent: #f38ba8;
+            --highlight: #f9e2af;
+            --muted: #6c7086;
+            --box-bg: #313244;
+            --box-border: #45475a;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        h1 {
+            color: var(--primary);
+            margin-bottom: 20px;
+        }
+
+        .controls {
+            background-color: var(--box-bg);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--box-border);
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        input[type="text"] {
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid var(--muted);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-size: 16px;
+            width: 300px;
+        }
+
+        button {
+            padding: 10px 20px;
+            border-radius: 6px;
+            border: none;
+            background-color: var(--primary);
+            color: var(--bg-color);
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, opacity 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            opacity: 0.9;
+        }
+
+        button:disabled {
+            background-color: var(--muted);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Visualization Areas */
+        .stage {
+            width: 100%;
+            max-width: 1000px;
+            margin-bottom: 30px;
+            background-color: var(--box-bg);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid var(--box-border);
+        }
+
+        .stage-title {
+            font-size: 1.2em;
+            color: var(--secondary);
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--box-border);
+            padding-bottom: 10px;
+        }
+
+        .char-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            min-height: 60px;
+            align-items: center;
+        }
+
+        .char-box {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: var(--bg-color);
+            border: 2px solid var(--muted);
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 18px;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .char-box.removed {
+            background-color: var(--accent);
+            opacity: 0;
+            transform: scale(0.5);
+        }
+
+        .char-box.active {
+            border-color: var(--primary);
+            box-shadow: 0 0 10px var(--primary);
+            z-index: 10;
+        }
+
+        .char-box.scanning {
+            border-color: var(--highlight);
+            background-color: rgba(249, 226, 175, 0.1);
+        }
+
+        .char-box.match {
+            background-color: var(--secondary);
+            color: var(--bg-color);
+            transform: scale(1.1);
+        }
+
+        .char-box.processed {
+            opacity: 0.5;
+            border-color: var(--box-border);
+        }
+
+        /* Tokens */
+        .tokens-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            min-height: 80px;
+            padding: 10px;
+            background-color: rgba(0,0,0,0.2);
+            border-radius: 8px;
+        }
+
+        .token-card {
+            background-color: var(--primary);
+            color: var(--bg-color);
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-weight: bold;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 60px;
+            transition: all 0.5s ease;
+            position: relative;
+        }
+
+        .token-card .letter {
+            font-size: 1.2em;
+        }
+        .token-card .count {
+            font-size: 0.9em;
+            background-color: rgba(0,0,0,0.2);
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-top: 4px;
+        }
+
+        /* Log */
+        .log-container {
+            width: 100%;
+            max-width: 1000px;
+            height: 150px;
+            overflow-y: auto;
+            background-color: #11111b;
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Consolas', monospace;
+            font-size: 14px;
+            border: 1px solid var(--box-border);
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            opacity: 0.8;
+        }
+        .log-entry.highlight {
+            color: var(--highlight);
+            opacity: 1;
+            font-weight: bold;
+        }
+
+        /* Legend */
+        .legend {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>华为OD - 字符串摘要算法演示</h1>
+
+    <div class="controls">
+        <input type="text" id="inputString" value="b...Bb" placeholder="输入字符串 (例如: b...Bb)">
+        <button onclick="startVisualization()" id="runBtn">开始演示</button>
+        <div class="speed-control">
+            <label>速度:</label>
+            <input type="range" id="speedRange" min="1" max="10" value="5">
+        </div>
+    </div>
+
+    <div class="legend">
+        <div class="legend-item"><div class="dot" style="background: var(--primary)"></div>当前处理</div>
+        <div class="legend-item"><div class="dot" style="background: var(--secondary)"></div>匹配/连续</div>
+        <div class="legend-item"><div class="dot" style="background: var(--highlight)"></div>扫描中</div>
+        <div class="legend-item"><div class="dot" style="background: var(--accent)"></div>删除非字母</div>
+    </div>
+
+    <div class="stage">
+        <div class="stage-title">1. 预处理 (去除非字母)</div>
+        <div class="char-container" id="stage1"></div>
+    </div>
+
+    <div class="stage">
+        <div class="stage-title">2. 扫描与统计</div>
+        <div class="char-container" id="stage2"></div>
+    </div>
+
+    <div class="stage">
+        <div class="stage-title">3. 生成摘要列表</div>
+        <div class="tokens-container" id="stage3"></div>
+    </div>
+
+    <div class="stage">
+        <div class="stage-title">4. 排序与结果</div>
+        <div class="tokens-container" id="stage4"></div>
+        <div style="margin-top: 15px; font-size: 1.5em; font-weight: bold; color: var(--secondary);" id="finalResult"></div>
+    </div>
+
+    <div class="log-container" id="log"></div>
+
+    <script>
+        // State
+        let speed = 500;
+        let isRunning = false;
+        
+        // Elements
+        const els = {
+            input: document.getElementById('inputString'),
+            runBtn: document.getElementById('runBtn'),
+            speed: document.getElementById('speedRange'),
+            stage1: document.getElementById('stage1'),
+            stage2: document.getElementById('stage2'),
+            stage3: document.getElementById('stage3'),
+            stage4: document.getElementById('stage4'),
+            result: document.getElementById('finalResult'),
+            log: document.getElementById('log')
+        };
+
+        // Helpers
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms / (document.getElementById('speedRange').value / 2))); // Dynamic speed
+        
+        function log(msg, highlight = false) {
+            const div = document.createElement('div');
+            div.className = `log-entry ${highlight ? 'highlight' : ''}`;
+            div.textContent = `> ${msg}`;
+            els.log.appendChild(div);
+            els.log.scrollTop = els.log.scrollHeight;
+        }
+
+        function createCharBox(char, index) {
+            const div = document.createElement('div');
+            div.className = 'char-box';
+            div.textContent = char;
+            div.dataset.index = index;
+            div.dataset.char = char;
+            return div;
+        }
+
+        function createToken(char, count, type) {
+            const div = document.createElement('div');
+            div.className = 'token-card';
+            div.innerHTML = `
+                <span class="letter">${char}</span>
+                <span class="count">${count}</span>
+            `;
+            div.dataset.char = char;
+            div.dataset.count = count;
+            // Use a sort value for animation logic if needed
+            return div;
+        }
+
+        async function startVisualization() {
+            if (isRunning) return;
+            isRunning = true;
+            els.runBtn.disabled = true;
+            els.stage1.innerHTML = '';
+            els.stage2.innerHTML = '';
+            els.stage3.innerHTML = '';
+            els.stage4.innerHTML = '';
+            els.result.textContent = '';
+            els.log.innerHTML = '';
+
+            const input = els.input.value;
+            if (!input) {
+                log("请输入字符串!");
+                isRunning = false;
+                els.runBtn.disabled = false;
+                return;
+            }
+
+            log(`开始处理字符串: "${input}"`, true);
+            await sleep(500);
+
+            // --- Step 1: Filtering ---
+            log("第一步: 去除所有非字母字符...");
+            let cleanChars = [];
+            
+            // Fill Stage 1
+            for (let i = 0; i < input.length; i++) {
+                const box = createCharBox(input[i], i);
+                els.stage1.appendChild(box);
+            }
+            await sleep(500);
+
+            const stage1Boxes = Array.from(els.stage1.children);
+            for (let i = 0; i < stage1Boxes.length; i++) {
+                const box = stage1Boxes[i];
+                const char = box.textContent;
+                if (/[a-zA-Z]/.test(char)) {
+                    cleanChars.push({char, originalIndex: i});
+                } else {
+                    box.classList.add('removed');
+                    log(`位置 ${i}: '${char}' 不是字母，移除。`);
+                    await sleep(200);
+                    box.style.display = 'none'; // Visually remove
+                }
+            }
+
+            const cleanString = cleanChars.map(c => c.char).join('');
+            log(`处理后的字符串: "${cleanString}"`, true);
+            await sleep(1000);
+
+            // --- Step 2: Copy to Stage 2 ---
+            els.stage2.innerHTML = '';
+            cleanChars.forEach((c, idx) => {
+                const box = createCharBox(c.char, idx);
+                els.stage2.appendChild(box);
+            });
+            
+            // --- Step 3: Processing ---
+            let tokens = [];
+            let boxes = Array.from(els.stage2.children);
+            let i = 0;
+            
+            while (i < boxes.length) {
+                const currentBox = boxes[i];
+                const currentChar = currentBox.textContent;
+                const lowerChar = currentChar.toLowerCase();
+                
+                currentBox.classList.add('active');
+                
+                // Check consecutive
+                let isConsecutive = false;
+                if (i + 1 < boxes.length) {
+                    const nextChar = boxes[i+1].textContent;
+                    if (nextChar.toLowerCase() === lowerChar) {
+                        isConsecutive = true;
+                    }
+                }
+
+                if (isConsecutive) {
+                    log(`检测到位置 ${i} ('${currentChar}') 开始连续字符序列...`, true);
+                    let count = 0;
+                    let j = i;
+                    let consecutiveBoxes = [];
+                    
+                    // Highlight all consecutive
+                    while (j < boxes.length) {
+                        const checkChar = boxes[j].textContent;
+                        if (checkChar.toLowerCase() === lowerChar) {
+                            boxes[j].classList.add('match');
+                            consecutiveBoxes.push(boxes[j]);
+                            count++;
+                            j++;
+                            await sleep(200);
+                        } else {
+                            break;
+                        }
+                    }
+                    
+                    log(`连续字符 '${lowerChar}' 长度为 ${count}`);
+                    const token = { char: lowerChar, count: count, type: 'consecutive' };
+                    tokens.push(token);
+                    
+                    // Add to stage 3
+                    const tokenEl = createToken(lowerChar, count, 'consecutive');
+                    els.stage3.appendChild(tokenEl);
+                    
+                    // Mark as processed
+                    consecutiveBoxes.forEach(b => {
+                        b.classList.remove('active');
+                        b.classList.remove('match');
+                        b.classList.add('processed');
+                    });
+                    
+                    i = j; // Skip all processed
+                } else {
+                    // Non-consecutive
+                    log(`位置 ${i} ('${currentChar}') 是非连续字符。统计后续出现次数...`, true);
+                    let count = 0;
+                    
+                    // Scan ahead
+                    for (let k = i + 1; k < boxes.length; k++) {
+                        const targetBox = boxes[k];
+                        targetBox.classList.add('scanning');
+                        await sleep(100);
+                        
+                        if (targetBox.textContent.toLowerCase() === lowerChar) {
+                            targetBox.classList.remove('scanning');
+                            targetBox.classList.add('match'); // Flash match
+                            count++;
+                            log(`  -> 在位置 ${k} 找到 '${targetBox.textContent}' (累计: ${count})`);
+                            await sleep(300);
+                            targetBox.classList.remove('match');
+                        } else {
+                            targetBox.classList.remove('scanning');
+                        }
+                    }
+                    
+                    log(`'${lowerChar}' 在后续字符串中出现了 ${count} 次。`);
+                    const token = { char: lowerChar, count: count, type: 'non-consecutive' };
+                    tokens.push(token);
+                    
+                    // Add to stage 3
+                    const tokenEl = createToken(lowerChar, count, 'non-consecutive');
+                    els.stage3.appendChild(tokenEl);
+                    
+                    currentBox.classList.remove('active');
+                    currentBox.classList.add('processed');
+                    i++;
+                }
+                await sleep(500);
+            }
+
+            // --- Step 4: Sorting ---
+            log("所有字符处理完毕。开始排序...", true);
+            await sleep(1000);
+            
+            // Copy tokens to stage 4 for sorting animation
+            els.stage4.innerHTML = '';
+            let sortableEls = [];
+            tokens.forEach(t => {
+                const el = createToken(t.char, t.count, t.type);
+                els.stage4.appendChild(el);
+                sortableEls.push({ data: t, el: el });
+            });
+
+            // Sorting Logic
+            // Rule: Count DESC, then Char ASC
+            log("排序规则: 数字大在前 -> 字母ASCII小在前");
+            await sleep(1000);
+
+            // We will animate this by removing and re-appending in correct order
+            // A simple visualization of the result is enough
+            tokens.sort((a, b) => {
+                if (b.count !== a.count) return b.count - a.count;
+                return a.char.charCodeAt(0) - b.char.charCodeAt(0);
+            });
+
+            // Clear and re-append with animation
+            els.stage4.innerHTML = '';
+            for (let t of tokens) {
+                const el = createToken(t.char, t.count, t.type);
+                el.style.opacity = '0';
+                el.style.transform = 'translateY(20px)';
+                els.stage4.appendChild(el);
+                
+                // Trigger reflow
+                el.offsetHeight; 
+                
+                el.style.opacity = '1';
+                el.style.transform = 'translateY(0)';
+                await sleep(200);
+            }
+
+            // --- Final Result ---
+            const resultStr = tokens.map(t => t.char + t.count).join('');
+            log(`最终结果: ${resultStr}`, true);
+            els.result.textContent = resultStr;
+
+            isRunning = false;
+            els.runBtn.disabled = false;
+        }
+    </script>
+</body>
+</html>
